@@ -13,10 +13,31 @@ const ResetPasswordPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [validatingToken, setValidatingToken] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const verifyToken = async () => {
       try {
+        // Kiểm tra nếu có tham số lỗi trong URL
+        const urlError = searchParams.get('error');
+        const urlErrorCode = searchParams.get('error_code');
+        const urlErrorDescription = searchParams.get('error_description');
+        
+        // Nếu có lỗi trong URL, hiển thị thông báo lỗi phù hợp
+        if (urlError || urlErrorCode) {
+          console.log("Error in URL params:", { urlError, urlErrorCode, urlErrorDescription });
+          
+          if (urlErrorCode === 'otp_expired') {
+            setErrorMessage('Link đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu link mới.');
+          } else {
+            setErrorMessage(urlErrorDescription ? decodeURIComponent(urlErrorDescription) : 'Link không hợp lệ. Vui lòng yêu cầu link mới.');
+          }
+          
+          setTokenValid(false);
+          setValidatingToken(false);
+          return;
+        }
+        
         // Kiểm tra các tham số trong URL
         // Supabase có thể gửi 'code', 'token', 'type', 'access_token', hoặc 'refresh_token'
         const code = searchParams.get('code');
@@ -53,12 +74,14 @@ const ResetPasswordPage = () => {
             if (error) {
               console.error('Error setting session from URL:', error);
               setTokenValid(false);
+              setErrorMessage('Không thể xác thực session. Vui lòng yêu cầu link mới.');
             } else {
               setTokenValid(true);
             }
           } catch (err) {
             console.error('Error setting session:', err);
             setTokenValid(false);
+            setErrorMessage('Đã xảy ra lỗi khi xác thực session. Vui lòng yêu cầu link mới.');
           }
           setValidatingToken(false);
           return;
@@ -66,10 +89,12 @@ const ResetPasswordPage = () => {
         
         // Không tìm thấy tham số nào hợp lệ
         setTokenValid(false);
+        setErrorMessage('Không tìm thấy thông tin xác thực trong URL. Vui lòng yêu cầu link mới.');
         setValidatingToken(false);
       } catch (error) {
         console.error('Error validating reset parameters:', error);
         setTokenValid(false);
+        setErrorMessage('Đã xảy ra lỗi khi xác thực tham số. Vui lòng yêu cầu link mới.');
         setValidatingToken(false);
       }
     };
@@ -165,7 +190,7 @@ const ResetPasswordPage = () => {
               </div>
               <h1 className="text-2xl font-bold mb-4">Liên kết không hợp lệ hoặc đã hết hạn</h1>
               <p className="text-gray-600 mb-6">
-                Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu liên kết mới.
+                {errorMessage || 'Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn. Vui lòng yêu cầu liên kết mới.'}
               </p>
               <Link to="/forgot-password" className="btn btn-primary w-full">
                 Yêu cầu liên kết mới
