@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, X, GraduationCap } from 'lucide-react';
+import { Menu, X, GraduationCap, User, LogOut } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const toggleProfileDropdown = () => {
+    setIsProfileDropdownOpen(!isProfileDropdownOpen);
   };
 
   useEffect(() => {
@@ -25,10 +33,47 @@ const Navbar = () => {
     };
   }, []);
 
+  // Kiểm tra trạng thái đăng nhập
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        setIsLoggedIn(true);
+        setUserEmail(data.session.user.email || null);
+      } else {
+        setIsLoggedIn(false);
+        setUserEmail(null);
+      }
+    };
+
+    checkAuth();
+
+    // Đăng ký lắng nghe sự kiện thay đổi trạng thái xác thực
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setIsLoggedIn(true);
+          setUserEmail(session.user.email || null);
+        } else if (event === 'SIGNED_OUT') {
+          setIsLoggedIn(false);
+          setUserEmail(null);
+        }
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setIsProfileDropdownOpen(false);
+  };
+
   const navLinks = [
     { name: 'Trang chủ', path: '/' },
     { name: 'Khóa học', path: '/courses' },
-    { name: 'Đăng ký', path: '/registration' },
     { name: 'Liên hệ', path: '/contact' },
   ];
 
@@ -64,9 +109,53 @@ const Navbar = () => {
               </li>
             ))}
           </ul>
-          <NavLink to="/account" className="btn btn-primary ml-2">
-            Tài khoản học viên
-          </NavLink>
+          
+          {isLoggedIn ? (
+            <div className="relative ml-2">
+              <button
+                onClick={toggleProfileDropdown}
+                className="flex items-center gap-2 px-4 py-2 text-gray-800 hover:text-primary-600 rounded-lg border border-gray-200 hover:border-primary-200"
+              >
+                <User size={18} />
+                <span className="max-w-[150px] truncate">{userEmail}</span>
+              </button>
+              
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-100">
+                  <Link
+                    to="/account"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-t-md"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                  >
+                    Tài khoản
+                  </Link>
+                  <Link
+                    to="/registration"
+                    className="block px-4 py-2 text-gray-700 hover:bg-gray-50"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                  >
+                    Đăng ký khóa học
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-50 rounded-b-md"
+                  >
+                    <LogOut size={16} className="mr-2" />
+                    Đăng xuất
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 ml-2">
+              <Link to="/login" className="btn btn-outline">
+                Đăng nhập
+              </Link>
+              <Link to="/registration" className="btn btn-primary">
+                Đăng ký
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Mobile Navigation Button */}
@@ -108,15 +197,62 @@ const Navbar = () => {
                 </NavLink>
               </li>
             ))}
-            <li>
-              <NavLink
-                to="/account"
-                onClick={toggleMenu}
-                className="block px-4 py-3 mt-2 font-medium text-white rounded-lg bg-primary-600 hover:bg-primary-700"
-              >
-                Tài khoản học viên
-              </NavLink>
-            </li>
+            
+            {isLoggedIn ? (
+              <>
+                <li>
+                  <NavLink
+                    to="/account"
+                    onClick={toggleMenu}
+                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Tài khoản
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/registration"
+                    onClick={toggleMenu}
+                    className="block px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Đăng ký khóa học
+                  </NavLink>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      toggleMenu();
+                    }}
+                    className="flex items-center w-full px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    <LogOut size={16} className="mr-2" />
+                    Đăng xuất
+                  </button>
+                </li>
+              </>
+            ) : (
+              <>
+                <li>
+                  <NavLink
+                    to="/login"
+                    onClick={toggleMenu}
+                    className="block px-4 py-3 mt-2 text-center rounded-lg border border-primary-600 text-primary-600"
+                  >
+                    Đăng nhập
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink
+                    to="/registration"
+                    onClick={toggleMenu}
+                    className="block px-4 py-3 mt-2 text-center font-medium text-white rounded-lg bg-primary-600 hover:bg-primary-700"
+                  >
+                    Đăng ký
+                  </NavLink>
+                </li>
+              </>
+            )}
           </ul>
         </div>
       </div>

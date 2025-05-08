@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 interface LoginFormData {
   email: string;
@@ -15,6 +16,7 @@ const initialFormData: LoginFormData = {
 };
 
 const LoginForm = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<LoginFormData>(initialFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
@@ -65,7 +67,7 @@ const LoginForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -73,16 +75,39 @@ const LoginForm = () => {
     }
     
     setIsSubmitting(true);
+    setLoginError(null);
     
-    // Simulate login API call
-    setTimeout(() => {
-      console.log('Login attempt:', formData);
+    try {
+      // Đăng nhập với Supabase
+      const { error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
       
-      // For demo purposes, always show login error
-      // In a real app, this would check credentials and redirect to dashboard
-      setLoginError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.');
+      if (error) {
+        console.error('Login error:', error);
+        
+        // Xử lý các loại lỗi khác nhau
+        if (error.message.includes('Invalid login credentials')) {
+          setLoginError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setLoginError('Vui lòng xác nhận email của bạn trước khi đăng nhập.');
+        } else {
+          setLoginError(error.message || 'Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại sau.');
+        }
+        
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Đăng nhập thành công, chuyển hướng đến trang account
       setIsSubmitting(false);
-    }, 1000);
+      navigate('/account');
+    } catch (err) {
+      console.error('Unexpected login error:', err);
+      setLoginError('Đã xảy ra lỗi không xác định. Vui lòng thử lại sau.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
