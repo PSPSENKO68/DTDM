@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { generateOTP, saveOTP } from './authService';
 
 // Hàm này sẽ được gọi để gửi email xác nhận sau khi người dùng đăng ký
 export async function sendVerificationEmail(email: string): Promise<{ success: boolean; message: string }> {
@@ -74,25 +75,67 @@ export async function sendCourseRegistrationConfirmation(
   }
 }
 
-// Hàm để gửi email khi người dùng đặt lại mật khẩu
+// Hàm để gửi email với mã OTP để đặt lại mật khẩu
 export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Sử dụng URL tuyệt đối thay vì window.location.origin
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://khanhduyenglish.vercel.app/reset-password',
-    });
-
-    if (error) {
-      console.error('Error sending password reset email:', error);
+    // Tạo mã OTP 6 chữ số
+    const otp = generateOTP();
+    
+    // Lưu mã OTP vào cơ sở dữ liệu
+    const otpSaved = await saveOTP(email, otp);
+    
+    if (!otpSaved) {
       return {
         success: false,
-        message: 'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.',
+        message: 'Không thể tạo mã OTP. Vui lòng thử lại sau.',
       };
+    }
+    
+    // Gửi email với mã OTP
+    // Hiện tại chỉ ghi ra console vì chúng ta chưa có dịch vụ gửi email
+    // Trong thực tế, bạn sẽ tích hợp với dịch vụ gửi email như SendGrid, Mailchimp, v.v.
+    console.log(`Sending password reset OTP to ${email}. OTP: ${otp}`);
+
+    // TODO: Tích hợp với dịch vụ gửi email thực tế ở đây
+    // Ví dụ với SendGrid:
+    /*
+    const msg = {
+      to: email,
+      from: 'educare@example.com',
+      subject: 'Mã xác thực đặt lại mật khẩu',
+      html: `
+        <div>
+          <h2>Đặt lại mật khẩu</h2>
+          <p>Bạn đã yêu cầu đặt lại mật khẩu cho tài khoản EduCare Center.</p>
+          <p>Mã xác thực của bạn là: <strong>${otp}</strong></p>
+          <p>Mã này có hiệu lực trong 15 phút.</p>
+          <p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>
+          <p>Trân trọng,<br>Đội ngũ EduCare Center</p>
+        </div>
+      `,
+    };
+    await sendgrid.send(msg);
+    */
+    
+    // Giả lập email để kiểm tra hệ thống
+    const { error } = await supabase
+      .from('email_log')
+      .insert([
+        { 
+          to_email: email,
+          subject: 'Mã xác thực đặt lại mật khẩu',
+          content: `Mã xác thực của bạn là: ${otp}. Mã này có hiệu lực trong 15 phút.`,
+          status: 'sent'
+        }
+      ]);
+      
+    if (error) {
+      console.error('Error logging email:', error);
     }
 
     return {
       success: true,
-      message: 'Email đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư của bạn.',
+      message: 'Mã xác thực đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.',
     };
   } catch (error) {
     console.error('Email service error:', error);

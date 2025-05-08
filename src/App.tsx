@@ -7,6 +7,8 @@ import CourseDetailPage from './pages/CourseDetailPage';
 import RegistrationPage from './pages/RegistrationPage';
 import LoginPage from './pages/LoginPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import OtpVerificationPage from './pages/OtpVerificationPage';
+import VerifyResetPasswordPage from './pages/VerifyResetPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import ContactPage from './pages/ContactPage';
 import AccountPage from './pages/AccountPage';
@@ -32,6 +34,8 @@ function App() {
           <Route path="registration" element={<RegistrationPage />} />
           <Route path="login" element={<LoginPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="otp-verification" element={<OtpVerificationPage />} />
+          <Route path="verify-reset-password" element={<VerifyResetPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="contact" element={<ContactPage />} />
           <Route path="account" element={<AccountPage />} />
