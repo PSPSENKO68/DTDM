@@ -77,8 +77,9 @@ export async function sendCourseRegistrationConfirmation(
 // Hàm để gửi email khi người dùng đặt lại mật khẩu
 export async function sendPasswordResetEmail(email: string): Promise<{ success: boolean; message: string }> {
   try {
+    // Sử dụng URL tuyệt đối thay vì window.location.origin
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: 'https://khanhduyenglish.vercel.app/reset-password',
     });
 
     if (error) {
