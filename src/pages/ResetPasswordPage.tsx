@@ -17,21 +17,58 @@ const ResetPasswordPage = () => {
   useEffect(() => {
     const verifyToken = async () => {
       try {
-        // Kiểm tra xem token có hợp lệ không
+        // Kiểm tra các tham số trong URL
+        // Supabase có thể gửi 'code', 'token', 'type', 'access_token', hoặc 'refresh_token'
+        const code = searchParams.get('code');
         const token = searchParams.get('token');
+        const type = searchParams.get('type');
+        const accessToken = searchParams.get('access_token');
+        const refreshToken = searchParams.get('refresh_token');
         
-        if (!token) {
-          setTokenValid(false);
+        console.log("URL params:", { code, token, type, accessToken, refreshToken });
+        
+        // Nếu có code (Supabase thường dùng parameter này)
+        if (code) {
+          setTokenValid(true);
           setValidatingToken(false);
           return;
         }
-
-        // Không cần xác thực token ngay, vì Supabase sẽ xử lý điều này khi đặt lại mật khẩu
-        // Chỉ kiểm tra xem token có tồn tại không
-        setTokenValid(true);
+        
+        // Nếu có token
+        if (token) {
+          setTokenValid(true);
+          setValidatingToken(false);
+          return;
+        }
+        
+        // Nếu có access_token và refresh_token (recovery flow)
+        if (type === 'recovery' && accessToken && refreshToken) {
+          try {
+            // Thiết lập session từ URL callback
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken
+            });
+            
+            if (error) {
+              console.error('Error setting session from URL:', error);
+              setTokenValid(false);
+            } else {
+              setTokenValid(true);
+            }
+          } catch (err) {
+            console.error('Error setting session:', err);
+            setTokenValid(false);
+          }
+          setValidatingToken(false);
+          return;
+        }
+        
+        // Không tìm thấy tham số nào hợp lệ
+        setTokenValid(false);
         setValidatingToken(false);
       } catch (error) {
-        console.error('Error validating token:', error);
+        console.error('Error validating reset parameters:', error);
         setTokenValid(false);
         setValidatingToken(false);
       }
@@ -63,16 +100,14 @@ const ResetPasswordPage = () => {
     setError(null);
     
     try {
-      // Lấy token từ URL
+      // Supabase có thể gửi 'code', 'token', hoặc các tham số khác
+      const code = searchParams.get('code');
       const token = searchParams.get('token');
       
-      if (!token) {
-        setError('Không tìm thấy token xác thực trong URL');
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Cập nhật mật khẩu
+      // Log để debug
+      console.log("Attempting password reset with:", { code, token });
+      
+      // Cập nhật mật khẩu - Không cần truyền token/code, Supabase tự đọc từ URL
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       });
@@ -90,7 +125,7 @@ const ResetPasswordPage = () => {
       
       // Sau 3 giây, chuyển hướng đến trang đăng nhập
       setTimeout(() => {
-        navigate('/login');
+        navigate('/login?success=reset');
       }, 3000);
     } catch (err) {
       console.error('Error during password reset:', err);
